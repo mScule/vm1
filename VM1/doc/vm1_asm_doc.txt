@@ -1,0 +1,174 @@
+VM1 Assembler documentation
+
+Keywords in VM1 assembler are case insensitive.
+
+Operation codes
+  For opcodes hex values, see vm1_doc.txt
+
+  Program END point
+  END (none)
+    Ends program execution.
+    End won't take in any parameters
+
+  JuMP
+  JMP (16bit value)
+    Jumps to other memory location.
+    Takes in value that is used as a
+    memory location.
+
+  Positive BRanch
+  PBR (flag, 16bit value)
+    Takes in flag that is checked.
+    if flag is 1, program counter jumps
+    to given address
+
+  Negative BRanch
+  NBR (flag, 16bit value)
+    Takes in flag that is checked.
+    if flag is 0, program counter jumps
+    to given address
+
+  - Operations that updates flags -----------------------------------------------
+
+  ADDition
+  ADD (register, register)
+    Adds value from second register to
+    first
+
+  SUBtraction
+  SUB (register, register)
+    Subtracts second value from first
+    and writes the result in the first
+    register
+
+  MULtiplication
+  MUL (register, register)
+    Multiplies value in first register
+    with the value in the second register,
+    and writes the result in the first one.
+
+  DIVision
+  DIV (register, register)
+    Divides the value in the first register
+    with the value in the second register and
+    writes the result in the first register.
+
+  REMinder
+  REM (register, register)
+    Does modulo operation with the values in
+    the registers, and writes the result in
+    the first register.
+
+  Set Register with Value
+  SRV (register, 16bit value)
+    sets register with given value.
+
+  Set Register with Register
+  SRR (register, register)
+    Sets register value with another register value.
+
+  Set Register with Memory address
+  SRM (register, 16bit value)
+    Sets register value with value from memory address.
+
+  Set Memory address with Register
+  SMR (16bit value, register)
+    Sets value in memory address with value from register.
+
+  Is EQual
+  IEQ (register, register)
+    Checks if register 1 equals register 2
+
+  Is Less Than
+  ILT (register, register)
+    Checks if register1 is less than register2
+
+  Is More Than
+  IMT (register, register)
+    Checks if register1 is more than register2
+
+  Is Less or eQual to
+  ILQ (register, register)
+    Checks if register1 is less or equal to register2
+
+  Is More or eQual to
+  IMQ (register, register)
+    Checks if register1 is more or equal to register2
+
+  -------------------------------------------------------------------------------
+
+  PUT (register, 8bit value)
+    Puts contents of register into console output with given format.
+
+    The second register value is used for setting the print format 
+    type. 00 Binary, 01 Hex, 02 Int, 03 Ascii character.
+
+REGISTERS
+  There are 4 registers avaliable. all of them are 16 bits in size,
+  and general purpose.
+
+  GN1, GN2, GN3, GN4
+
+FLAGS
+  There are 3 flags in avaliable.
+
+  ZRO Zero flag 
+  POS Positive flag
+  NEG Negative flag (Doesn't handle negative numbers yet)
+
+  EQL Equal flag
+
+  LTH Less than flag
+  MTH More than flag
+
+  LQT Less or equal to
+  MQT More or equal to
+
+Data formats
+  You can write data in binary, hex, integers, characters,
+  and strings. Remember, when using strings you can't assign
+  it straight to any register with SRV op code. Youll have to
+  use location pointers for that.
+
+  Hex
+    When writing hex values, add "SX" or "DX" on front of the
+    hex value so assembler knows you want to specify value in
+    such format.
+
+    Examples: sx:0f dx:00ff
+
+  Integer
+    For integers, use "si:", or "di:" prefixes.
+
+    Examples: si:255 di:3456
+
+  Character
+    For characters use "'". You add multiple chars in sequences
+    but remember that SRV can take max two characters at a time.
+
+    Examples: 'a' 'b'
+
+  String
+    For strings use '"'. Remember. Strings won't add nullpoint
+    terminator by themselves.
+
+  Escape characters
+    Strings and characters have escape characters that can be
+    accessed by using prefix '\'. You can escape newlines, tabs,
+    character/ string prefixes, and the nullpoint terminator.
+
+    Examples: "\t\n\"\0"
+
+Location pointer and location pointer call ('>' and ':')
+  To use location pointers, name for them needs to be specified.
+  For example, if you want to access :name1 location in memory,
+  you need to declare corresponding >name1 in somewhere in the
+  assembly file.
+
+  Location pointer '>'
+    Location pointer creates access point in memory which value
+    you can call by using Location pointer call.
+
+  Location pointer call ':'
+    Location reference is used for accessing location that 
+    corresponding location pointer is pointing to.

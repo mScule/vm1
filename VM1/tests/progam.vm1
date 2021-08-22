@@ -1,0 +1,7 @@
+srv gn1 di:20 ; number twenty to register 1 
+srv gn2 di:9  ; number nine to register 2
+
+add gn1 gn2 ; adding values together
+put gn1 si:2 ; printing value
+
+end
