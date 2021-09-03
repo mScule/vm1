@@ -1,0 +1,23 @@
+srv rg1 di:1  # value
+srv rg2 di:0  # index
+srv rg3 di:16 # limit
+
+>loop
+    srv rg4 di:32 # space
+
+    # print number " "
+    out rg1 si:2
+    out rg4 si:3
+
+    # add rg1 by itself
+    add rg1 rg1
+
+    # increment index
+    srv rg4 di:1
+    add rg2 rg4
+
+    ilt rg2 rg3
+    pbr lth
+:loop
+
+end

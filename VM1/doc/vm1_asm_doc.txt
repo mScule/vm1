@@ -1,174 +1,138 @@
-VM1 Assembler documentation
+VM1 1.0.0 Assembler documentation
 
-Keywords in VM1 assembler are case insensitive.
+  Keywords in VM1 assembler are case insensitive
 
 Operation codes
+
   For opcodes hex values, see vm1_doc.txt
 
-  Program END point
-  END (none)
+  0x0 | END                   > none
+
     Ends program execution.
     End won't take in any parameters
 
-  JuMP
-  JMP (16bit value)
+  0x1 | JMP | JUMP            > 16bit value
+
     Jumps to other memory location.
     Takes in value that is used as a
     memory location.
 
-  Positive BRanch
-  PBR (flag, 16bit value)
+  0x2 | PBR | POSITIVE_BRANCH > flag, 16bit value
+
     Takes in flag that is checked.
     if flag is 1, program counter jumps
     to given address
 
-  Negative BRanch
-  NBR (flag, 16bit value)
+  0x3 | NBR | NEGATIVE_BRANCH > flag, 16bit value
+
     Takes in flag that is checked.
     if flag is 0, program counter jumps
     to given address
 
   - Operations that updates flags -----------------------------------------------
 
-  ADDition
-  ADD (register, register)
-    Adds value from second register to
-    first
+  0x4  | ADD                         > register, register
+  0x5  | SUB | SUBTRACT              > register, register
+  0x6  | MUL | MULTIPLY              > register, register
+  0x7  | DIV | DIVIDE                > register, register
+  0x8  | REM | REMINDER              > register, register
 
-  SUBtraction
-  SUB (register, register)
-    Subtracts second value from first
-    and writes the result in the first
-    register
+  0x9  | SRV | SET_REGISTER_VALUE    > register, 16bit value
+  0xA  | SRR | SET_REGISTER_REGISTER > register, register
+  0xB  | SRM | SET_REGISTER_MEMORY   > register, register
+  0xC  | SMR | SET_MEMORY_REGISTER   > register, register
 
-  MULtiplication
-  MUL (register, register)
-    Multiplies value in first register
-    with the value in the second register,
-    and writes the result in the first one.
-
-  DIVision
-  DIV (register, register)
-    Divides the value in the first register
-    with the value in the second register and
-    writes the result in the first register.
-
-  REMinder
-  REM (register, register)
-    Does modulo operation with the values in
-    the registers, and writes the result in
-    the first register.
-
-  Set Register with Value
-  SRV (register, 16bit value)
-    sets register with given value.
-
-  Set Register with Register
-  SRR (register, register)
-    Sets register value with another register value.
-
-  Set Register with Memory address
-  SRM (register, 16bit value)
-    Sets register value with value from memory address.
-
-  Set Memory address with Register
-  SMR (16bit value, register)
-    Sets value in memory address with value from register.
-
-  Is EQual
-  IEQ (register, register)
-    Checks if register 1 equals register 2
-
-  Is Less Than
-  ILT (register, register)
-    Checks if register1 is less than register2
-
-  Is More Than
-  IMT (register, register)
-    Checks if register1 is more than register2
-
-  Is Less or eQual to
-  ILQ (register, register)
-    Checks if register1 is less or equal to register2
-
-  Is More or eQual to
-  IMQ (register, register)
-    Checks if register1 is more or equal to register2
+  0xD  | IEQ | IS_EQUAL              > register, register
+  0xE  | ILT | IS_LESS_THAN          > register, register
+  0xF  | IMT | IS_MORE_THAN          > register, register
+  0x10 | ILQ | IS_LESS_OR_EQUAL_TO   > register, register
+  0x11 | IMQ | IS_MORE_OR_EQUAL_TO   > register, register
 
   -------------------------------------------------------------------------------
 
-  PUT (register, 8bit value)
-    Puts contents of register into console output with given format.
+  0x12 | OUT | OUTPUT                > register, 8bit value
 
-    The second register value is used for setting the print format 
-    type. 00 Binary, 01 Hex, 02 Int, 03 Ascii character.
+    The second register value is used for setting the print format type.
+
+    0x0 | BIN | BINARY
+    0x1 | HEX | HEXADECIMAL
+    0x2 | INT | INTEGER
+    0x3 | CHR | CHARACTER
 
 REGISTERS
+
   There are 4 registers avaliable. all of them are 16 bits in size,
   and general purpose.
 
-  GN1, GN2, GN3, GN4
+  0x0 | RG1 | REGISTER1
+  0x1 | RG2 | REGISTER2
+  0x2 | RG3 | REGISTER3
+  0x3 | RG4 | REGISTER4
 
 FLAGS
-  There are 3 flags in avaliable.
 
-  ZRO Zero flag 
-  POS Positive flag
-  NEG Negative flag (Doesn't handle negative numbers yet)
+  There are 8 flags in avaliable.
 
-  EQL Equal flag
+  0x0 | ZRO | ZERO
+  0x1 | POS | POSITIVE
+  0x2 | NEG | NEGATIVE
 
-  LTH Less than flag
-  MTH More than flag
+  0x3 | EQL | EQUAL
 
-  LQT Less or equal to
-  MQT More or equal to
+  0x4 | LTH | LESS_THAN
+  0x5 | MTH | MORE_THAN
+
+  0x6 | LQT | LESS_OR_EQUAL_TO
+  0x7 | MQT | MORE_OR_EQUAL_TO
 
 Data formats
+
   You can write data in binary, hex, integers, characters,
   and strings. Remember, when using strings you can't assign
   it straight to any register with SRV op code. Youll have to
   use location pointers for that.
 
   Hex
-    When writing hex values, add "SX" or "DX" on front of the
-    hex value so assembler knows you want to specify value in
-    such format.
 
-    Examples: sx:0f dx:00ff
+    To use hex values use SX or SINGLE_HEX for values that are
+    size of single byte, and DX or DOUBLE_HEX for values that are
+    size of 16bits.
+
+    Examples: sx:0f dx:00ff single_hex:ff double_hex:ffff
 
   Integer
-    For integers, use "si:", or "di:" prefixes.
 
-    Examples: si:255 di:3456
+    To use integer values use SI or SINGLE_INT for values that are
+    size of single byte, and DI or DOUBLE_INT for values that are
+    size of 16bits.
 
-  Character
-    For characters use "'". You add multiple chars in sequences
-    but remember that SRV can take max two characters at a time.
+    Examples: si:10 di:5045 single_int:255 double_int:12345
 
-    Examples: 'a' 'b'
+  Strings and characters
 
-  String
-    For strings use '"'. Remember. Strings won't add nullpoint
-    terminator by themselves.
+    For ASCII strings and characters use '"' around the strings or
+    characters. There are no escape characters. You have to use
+    single byte sized integer or hex value for quotes, newlines, tabs
+    etc.
 
   Escape characters
-    Strings and characters have escape characters that can be
-    accessed by using prefix '\'. You can escape newlines, tabs,
-    character/ string prefixes, and the nullpoint terminator.
 
-    Examples: "\t\n\"\0"
+    There are no escape characters for string. to write '"' use
+    its ascii value with "si:" or "sx:".
 
 Location pointer and location pointer call ('>' and ':')
+
   To use location pointers, name for them needs to be specified.
   For example, if you want to access :name1 location in memory,
   you need to declare corresponding >name1 in somewhere in the
   assembly file.
 
   Location pointer '>'
+
     Location pointer creates access point in memory which value
     you can call by using Location pointer call.
 
   Location pointer call ':'
+
     Location reference is used for accessing location that 
     corresponding location pointer is pointing to.

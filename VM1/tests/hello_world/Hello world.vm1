@@ -1,0 +1,20 @@
+# vm1 assebler Hello world program
+
+srv rg1 di:33    # pointer to start of the string
+srv rg3 di:0     # zero checker
+srv rg4 di:1     # incrementer
+
+>print
+    srm rg2 rg1  # set 2 where 1 points to
+    out rg2 si:3 # print 2
+
+    srv rg4 di:1 # comparison
+    add rg1 rg4  # increment pointer
+
+    ieq rg2 rg3  # if rg2 != rg3
+    nbr eql
+:print
+
+end
+
+"Hello world!" si:0

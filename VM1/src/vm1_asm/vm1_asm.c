@@ -3,64 +3,49 @@
 #include <stdint.h> // uint16_t
 
 #include "..\shared\shared_macros.h" // PROJECT_NAME, TRUE, FALSE
-#include "..\shared\str.h" // str_length(), str_is_equal(), str_new(), str_append()
+#include "..\shared\str.h"           // str_length(), str_is_equal(), str_new(), str_append()
 
-#define VERSION "0.0.1"
-#define FILE_FORMAT_NAME "vbin"
+// Program
+
+#define FILE_FORMAT_NAME ".vbc"
 #define HEX "0x"
+
+// Error messages
+
 #define VALUE_PREFIX_ERROR_MSG "you need to give ':' before the value"
+#define UNSUPPORTED_KEYWORD_ERROR_MSG "Unsupported keyword "
 
 // Syntax
-#define S_VALUE_FORMAT_SETTER   ':'
-#define S_COMMENT               '#'
 
-#define S_LOCATION_POINTER      '>'
+#define S_VALUE_FORMAT_SETTER ':'
+#define S_COMMENT '#'
+
+#define S_LOCATION_POINTER '>'
 #define S_LOCATION_POINTER_CALL ':'
 
-#define S_CHAR                  '\''
-#define S_STRING                '"'
+#define S_CHAR '\''
+#define S_STRING '"'
 
-#define S_ESCAPER               '\\'
-#define S_NEWLINE               'n'
-#define S_TAB                   't'
-#define S_NULLPOINT_TERMINATOR  '\0'
+#define S_ESCAPER '\\'
+#define S_NEWLINE 'n'
+#define S_TAB 't'
+#define S_NULLPOINT_TERMINATOR '\0'
 
-char* input_buffer; long input_len;
-char  cur_char;     long index = 0;
+// Assembling
 
-typedef struct location_pointers { char *id; uint16_t mem_loc; } loc_ptr;
+char *input_buffer;
+long input_len;
 
-// output file
-long cur_mem_loc;
-loc_ptr loc_ptrs[UINT16_MAX];
-loc_ptr ptr_call_buffer[UINT16_MAX];
-uint16_t ptrs_len = 0, ptrs_call_buf_len = 0;
+char cur_char;
+long index = 0;
 
-char virtual_output[UINT16_MAX];
 FILE *output;
-
-int loc_ptr_exists(char* id)
-{
-    for(int i = 0; i < ptrs_len; i++)
-        if(str_is_equal(id, loc_ptrs[i].id));
-            return 1;
-
-    return 0;
-}
-
-uint16_t get_loc_ptr(char* id)
-{
-    for(int i = 0; i < ptrs_len; i++)
-    {
-        if(str_is_equal(id, loc_ptrs[i].id));
-            return loc_ptrs[i].mem_loc;
-    }
-    return UINT16_MAX;
-}
 
 void error(char *message)
 {
     printf("%s ERROR! %s", PROJECT_NAME, message);
+    free(message);
+
     getchar();
     exit(EXIT_FAILURE);
 }
@@ -73,28 +58,54 @@ void get_next_char()
         cur_char = '\0';
 }
 
-void demand_char(char ch, char* error_msg)
+void demand_char(char ch, char *error_msg)
 {
-    if(cur_char != ch)
+    if (cur_char != ch)
         error(error_msg);
     get_next_char();
 }
 
-void write(unsigned char bytecode)
+// Location pointers
+
+typedef struct location_pointers
 {
-    virtual_output[cur_mem_loc] = bytecode;
-    cur_mem_loc++;
+    char *id;
+    uint16_t mem_loc;
+} loc_ptr;
+
+// Used for keeping track of the memory location for
+// location pointers
+long cur_mem_loc;
+loc_ptr loc_ptrs[UINT16_MAX];
+uint16_t loc_ptrs_len = 0;
+
+loc_ptr loc_ptr_calls[UINT16_MAX];
+uint16_t loc_ptr_calls_len = 0;
+
+// Used for saving the intermediate version from
+// the final output, so missing location pointers
+// can be filled in.
+char output_buffer[UINT16_MAX];
+
+int loc_ptr_exists(char *id)
+{
+    for (int i = 0; i < loc_ptrs_len; i++)
+        if (str_equals(id, loc_ptrs[i].id))
+            return 1;
+
+    return 0;
 }
 
-void export()
+uint16_t get_loc_ptr(char *id)
 {
-    printf("Export:\n");
-    for(int i = 0; i < cur_mem_loc; i++)
-    {
-        printf("%d ", virtual_output[i]);
-        fwrite(&virtual_output[i], sizeof(char), 1, output);
-    }
+    for (int i = 0; i < loc_ptrs_len; i++)
+        if (str_equals(id, loc_ptrs[i].id))
+            return loc_ptrs[i].mem_loc;
+
+    return 0;
 }
+
+// Char recognition functions
 
 int is_blank()
 {
@@ -106,11 +117,9 @@ int is_blank()
 
 int is_alphabet()
 {
-    if
-    (
+    if (
         cur_char >= 'A' && cur_char <= 'Z' ||
-        cur_char >= 'a' && cur_char <= 'z'
-    )
+        cur_char >= 'a' && cur_char <= 'z')
         return 1;
     return 0;
 }
@@ -122,27 +131,36 @@ int is_number()
     return 0;
 }
 
+// Input reading functions
+
 void skip_blanks()
 {
-    while (is_blank()) get_next_char();
+    while (is_blank())
+        get_next_char();
 }
 
 char *build_word()
 {
     char *word = str_new("");
 
-    while(is_alphabet() || is_number() || cur_char == '_')
+    while (is_alphabet() || is_number() || cur_char == '_')
     {
-        if(cur_char >= 'a' && cur_char <= 'z')
+        if (cur_char >= 'a' && cur_char <= 'z')
             cur_char -= 32;
 
-        word = str_append(word, &cur_char);
+        word = str_combine(word, &cur_char);
         get_next_char();
     }
 
-    word[str_length(word)] = '\0';
-
     return word;
+}
+
+// Writing functions
+
+void write(unsigned char bytecode)
+{
+    output_buffer[cur_mem_loc] = bytecode;
+    cur_mem_loc++;
 }
 
 void write_8bit_hex()
@@ -150,7 +168,7 @@ void write_8bit_hex()
     demand_char(S_VALUE_FORMAT_SETTER, VALUE_PREFIX_ERROR_MSG);
 
     char *num = str_new(HEX);
-    num = str_append(num, build_word());
+    num = str_combine(num, build_word());
 
     write((unsigned char)strtol(num, NULL, 0));
 
@@ -162,7 +180,7 @@ void write_16bit_hex()
     demand_char(S_VALUE_FORMAT_SETTER, VALUE_PREFIX_ERROR_MSG);
 
     char *num = str_new(HEX);
-    num = str_append(num, build_word());
+    num = str_combine(num, build_word());
 
     write((unsigned char)strtol(num, NULL, 0));
     write((unsigned char)((uint16_t)strtol(num, NULL, 0) >> 8));
@@ -193,22 +211,141 @@ void write_16bit_int()
     free(num);
 }
 
+void export()
+{
+    printf("Export:\n");
+
+    for (int i = 0; i < cur_mem_loc; i++)
+    {
+        printf("%d ", output_buffer[i]);
+        fwrite(&output_buffer[i], sizeof(char), 1, output);
+    }
+}
+
+// Assembling functions
+
+void write_keyword(char *word)
+{
+    // Op codes
+
+    // Program flow related
+    if (str_equals(word, "END"))
+        write(0x0);
+    else if (str_equals(word, "JMP") || str_equals(word, "JUMP"))
+        write(0x1);
+    else if (str_equals(word, "PBR") || str_equals(word, "POSITIVE_BRANCH"))
+        write(0x2);
+    else if (str_equals(word, "NBR") || str_equals(word, "NEGATIVE_BRANCH"))
+        write(0x3);
+
+    // ALU related
+    else if (str_equals(word, "ADD"))
+        write(0x4);
+    else if (str_equals(word, "SUB") || str_equals(word, "SUBTRACT"))
+        write(0x5);
+    else if (str_equals(word, "MUL") || str_equals(word, "MULTIPLY"))
+        write(0x6);
+    else if (str_equals(word, "DIV") || str_equals(word, "DIVIDE"))
+        write(0x7);
+    else if (str_equals(word, "REM") || str_equals(word, "REMINDER"))
+        write(0x8);
+
+    // Memory management related
+    else if (str_equals(word, "SRV") || str_equals(word, "SET_REGISTER_VALUE"))
+        write(0x9);
+    else if (str_equals(word, "SRR") || str_equals(word, "SET_REGISTER_REGISTER"))
+        write(0xA);
+    else if (str_equals(word, "SRM") || str_equals(word, "SET_REGISTER_MEMORY"))
+        write(0xB);
+    else if (str_equals(word, "SMR") || str_equals(word, "SET_MEMORY_REGISTER"))
+        write(0xC);
+
+    // Conditionals related
+    else if (str_equals(word, "IEQ") || str_equals(word, "IS_EQUAL"))
+        write(0xD);
+    else if (str_equals(word, "ILT") || str_equals(word, "IS_LESS_THAN"))
+        write(0xE);
+    else if (str_equals(word, "IMT") || str_equals(word, "IS_MORE_THAN"))
+        write(0xF);
+    else if (str_equals(word, "ILQ") || str_equals(word, "IS_LESS_OR_EQUAL_TO"))
+        write(0x10);
+    else if (str_equals(word, "IMQ") || str_equals(word, "IS_MORE_OR_EQUAL_TO"))
+        write(0x11);
+
+    // Output related
+    else if (str_equals(word, "OUT") || str_equals(word, "OUTPUT"))
+        write(0x12);
+
+    // Registers
+    else if (str_equals(word, "RG1") || str_equals(word, "REGISTER1"))
+        write(0x0);
+    else if (str_equals(word, "RG2") || str_equals(word, "REGISTER2"))
+        write(0x1);
+    else if (str_equals(word, "RG3") || str_equals(word, "REGISTER3"))
+        write(0x2);
+    else if (str_equals(word, "RG4") || str_equals(word, "REGISTER4"))
+        write(0x3);
+
+    // Flags
+    else if (str_equals(word, "ZRO") || str_equals(word, "ZERO"))
+        write(0x0);
+    else if (str_equals(word, "POS") || str_equals(word, "POSITIVE"))
+        write(0x1);
+    else if (str_equals(word, "NEG") || str_equals(word, "NEGATIVE"))
+        write(0x2);
+    else if (str_equals(word, "EQL") || str_equals(word, "EQUAL"))
+        write(0x3);
+    else if (str_equals(word, "LTH") || str_equals(word, "LESS_THAN"))
+        write(0x4);
+    else if (str_equals(word, "MTH") || str_equals(word, "MORE_THAN"))
+        write(0x5);
+    else if (str_equals(word, "LQT") || str_equals(word, "LESS_OR_EQUAL_TO"))
+        write(0x6);
+    else if (str_equals(word, "MQT") || str_equals(word, "MORE_OR_EQUAL_TO"))
+        write(0x7);
+
+    // Data formats
+
+    // Hex
+    else if (str_equals(word, "SX") || str_equals(word, "SINGLE_HEX"))
+        write_8bit_hex();
+    else if (str_equals(word, "DX") || str_equals(word, "DOUBLE_HEX"))
+        write_16bit_hex();
+
+    // Int
+    else if (str_equals(word, "SI") || str_equals(word, "SINGLE_INT"))
+        write_8bit_int();
+    else if (str_equals(word, "DI") || str_equals(word, "DOUBLE_INT"))
+        write_16bit_int();
+
+    else // Keyword is unsupported
+    {
+        char *err_msg = str_new("");
+
+        err_msg = str_combine(err_msg, UNSUPPORTED_KEYWORD_ERROR_MSG);
+        err_msg = str_combine(err_msg, word);
+
+        error(err_msg);
+    }
+}
+
 int main(int argc, char *argv[])
 {
-    // If no file is passed, exit
-    if(argc < 2) return 0;
+    // No input file given, exit
+    if (argc < 2)
+        return 0;
 
-    printf("%s Assembler %s\n", PROJECT_NAME, VERSION);
-    printf("File: %s\n", argv[1]);
+    printf("%s Assembler %s\nFile: %s\n", PROJECT_NAME, ASM_VERSION, argv[1]);
 
+    // Reading input file
     FILE *input_file = fopen(argv[1], "rb");
 
     // Counting file length
-    fseek(input_file, 0, SEEK_END);
+    fseek(input_file, 0x0, SEEK_END);
     input_len = ftell(input_file);
-    fseek(input_file, 0, SEEK_SET);
+    fseek(input_file, 0x0, SEEK_SET);
 
-    // Creating input buffer with input length size
+    // Creating input buffer with input file length size
     // and add contents from input file to it
     input_buffer = malloc(sizeof(char) * input_len + 1);
 
@@ -217,24 +354,17 @@ int main(int argc, char *argv[])
 
     input_buffer[input_len] = '\0';
 
-    printf
-    (
-        "Contents:\n%s\nInput length: %d Input buffer size: %d\n",
-        input_buffer,
-        input_len,
-        str_length(input_buffer)
-    );
+    printf("Program size: %d bytes\n", input_len);
 
-    // Opening outputfile for writing
-    char *output_file_name;
+    // Creating name for the output
+    char *output_file_name = str_new("");
 
-    if(argc < 3)
-    {
-        output_file_name = "a";
-        str_append(output_file_name, FILE_FORMAT_NAME);
-    }
-    else
-        output_file_name = argv[2];
+    output_file_name = str_combine(output_file_name, argv[1]);
+    output_file_name = str_combine(output_file_name, FILE_FORMAT_NAME);
+
+    output_file_name[str_length(output_file_name)] = '\0';
+
+    printf("Exporting to: %s\n", output_file_name);
 
     // Assembling
     get_next_char();
@@ -244,147 +374,94 @@ int main(int argc, char *argv[])
     {
         skip_blanks();
 
-        // Build word
-        if(is_alphabet())
+        // Stated
+        switch (cur_char)
         {
-            cur_word = build_word();
+        case S_LOCATION_POINTER_CALL:
+            get_next_char();
 
-            // Op codes
-            if      (str_is_equal(cur_word, "END")) write(0x0);
-            else if (str_is_equal(cur_word, "JMP")) write(0x1);
-            else if (str_is_equal(cur_word, "PBR")) write(0x2);
-            else if (str_is_equal(cur_word, "NBR")) write(0x3);
+            char *id = build_word();
 
-            else if (str_is_equal(cur_word, "ADD")) write(0x4);
-            else if (str_is_equal(cur_word, "SUB")) write(0x5);
-            else if (str_is_equal(cur_word, "MUL")) write(0x6);
-            else if (str_is_equal(cur_word, "DIV")) write(0x7);
-            else if (str_is_equal(cur_word, "REM")) write(0x8);
+            if (loc_ptr_exists(id))
+            {
+                uint16_t loc = get_loc_ptr(id);
+                write(loc);
+                write(loc >> 8);
 
-            else if (str_is_equal(cur_word, "SRV")) write(0x9);
-            else if (str_is_equal(cur_word, "SRR")) write(0xA);
-            else if (str_is_equal(cur_word, "SRM")) write(0xB);
-            else if (str_is_equal(cur_word, "SMR")) write(0xC);
+                printf("Non buffered location call %s: %i\n", id, loc);
 
-            else if (str_is_equal(cur_word, "IEQ")) write(0xD);
-            else if (str_is_equal(cur_word, "ILT")) write(0xE);
-            else if (str_is_equal(cur_word, "IMT")) write(0xF);
-            else if (str_is_equal(cur_word, "ILQ")) write(0x10);
-            else if (str_is_equal(cur_word, "IMQ")) write(0x11);
+                free(id);
+            }
+            else
+            {
+                loc_ptr_calls[loc_ptr_calls_len].id = id;
+                loc_ptr_calls[loc_ptr_calls_len].mem_loc = cur_mem_loc;
+                loc_ptr_calls_len++;
 
-            else if (str_is_equal(cur_word, "PUT")) write(0x12);
+                write(0x0);
+                write(0x0);
+            }
+            break;
 
-            // Registers
-            else if (str_is_equal(cur_word, "GN1")) write(0x0);
-            else if (str_is_equal(cur_word, "GN2")) write(0x1);
-            else if (str_is_equal(cur_word, "GN3")) write(0x2);
-            else if (str_is_equal(cur_word, "GN4")) write(0x3);
+        case S_LOCATION_POINTER:
+            get_next_char();
 
-            // Flags
-            else if (str_is_equal(cur_word, "ZRO")) write(0x0);
-            else if (str_is_equal(cur_word, "POS")) write(0x1);
-            else if (str_is_equal(cur_word, "NEG")) write(0x2);
-            else if (str_is_equal(cur_word, "EQL")) write(0x3);
-            else if (str_is_equal(cur_word, "LTH")) write(0x4);
-            else if (str_is_equal(cur_word, "MTH")) write(0x5);
-            else if (str_is_equal(cur_word, "LQT")) write(0x6);
-            else if (str_is_equal(cur_word, "MQT")) write(0x7);
+            loc_ptrs[loc_ptrs_len].id = build_word();
+            loc_ptrs[loc_ptrs_len].mem_loc = cur_mem_loc;
 
-            // Data formats
-            else if (str_is_equal(cur_word, "SX")) write_8bit_hex();
-            else if (str_is_equal(cur_word, "DX")) write_16bit_hex();
+            loc_ptrs_len++;
+            break;
 
-            else if (str_is_equal(cur_word, "SI")) write_8bit_int();
-            else if (str_is_equal(cur_word, "DI")) write_16bit_int();
+        case S_COMMENT:
+            while (cur_char != '\n' && cur_char != '\0')
+                get_next_char();
+            break;
 
-            free(cur_word);
+        case '\"':           // String
+            get_next_char(); // for the starting '"'
+            while (cur_char != '\0' && cur_char != '"' && cur_char != '\n')
+            {
+                write(cur_char);
+                get_next_char();
+            }
+            get_next_char(); // for the trailing '"'
+            break;
         }
 
-        switch(cur_char)
+        // Keywords
+        if (is_alphabet())
         {
-            case S_LOCATION_POINTER_CALL :
-                get_next_char();
-
-                char* id = build_word();
-
-                if(loc_ptr_exists(id))
-                {
-                    uint16_t loc = get_loc_ptr(id);
-                    write(loc);
-                    write(loc >> 8);
-
-                    printf
-                    (
-                        "\nNon buffered location call %s: %i",
-                        id,
-                        loc
-                    );
-
-                    free(id);
-                }
-                else
-                {
-                    ptr_call_buffer[ptrs_call_buf_len].id = id;
-                    ptr_call_buffer[ptrs_call_buf_len].mem_loc = cur_mem_loc;
-                    ptrs_call_buf_len++;
-
-                    write(0x0);
-                    write(0x0);
-                }
-                break;
-
-            case S_LOCATION_POINTER :
-                get_next_char();
-
-                loc_ptrs[ptrs_len].id      = build_word();
-                loc_ptrs[ptrs_len].mem_loc = cur_mem_loc;
-
-                ptrs_len++;
-                break;
-
-            case S_COMMENT :
-                while(cur_char != '\n' && cur_char != '\0')
-                    get_next_char();
-                break;
-            
-            // Character
-            case '\'':
-                break;
-
-            // String
-            case '"' :
-                break;
+            cur_word = build_word();
+            write_keyword(cur_word);
+            free(cur_word);
         }
 
         get_next_char();
     }
 
     // Filling missing location pointers
-    for(int i = 0; i < ptrs_call_buf_len; i++)
+    for (int i = 0; i < loc_ptr_calls_len; i++)
     {
-        if(loc_ptr_exists(ptr_call_buffer[i].id))
+        if (loc_ptr_exists(loc_ptr_calls[i].id))
         {
-            uint16_t loc = get_loc_ptr(ptr_call_buffer[i].id);
-            virtual_output[ptr_call_buffer[i].mem_loc] = loc;
-            virtual_output[ptr_call_buffer[i].mem_loc + 1] = loc >> 8;
+            uint16_t loc = get_loc_ptr(loc_ptr_calls[i].id);
 
-            printf
-            (
-                "\nLocation call %s: %i",
-                ptr_call_buffer[i].id,
-                loc
-            );
+            output_buffer[loc_ptr_calls[i].mem_loc] = loc;
+            output_buffer[loc_ptr_calls[i].mem_loc + 1] = loc >> 8;
+
+            printf("Location call %s: %i\n", loc_ptr_calls[i].id, loc);
         }
         else
         {
-            char* errmsg = str_new("There isn't memory location specified for \"");
-            errmsg = str_append(errmsg, ptr_call_buffer[i].id);
-            errmsg = str_append(errmsg, "\"\0");
+            char *errmsg = str_new("There isn't memory location specified for \"");
+            errmsg = str_combine(errmsg, loc_ptr_calls[i].id);
+            errmsg = str_combine(errmsg, "\"");
             error(errmsg);
         }
     }
 
     // Exporting
+
     output = fopen(output_file_name, "w+");
     export();
     fclose(output);
@@ -392,9 +469,9 @@ int main(int argc, char *argv[])
     free(input_buffer);
 
     // Printing all location pointers
-    for(uint16_t i = 0; i < ptrs_len; i++)
+    for (uint16_t i = 0; i < loc_ptrs_len; i++)
     {
-        printf("\nLocation %s: %i", loc_ptrs[i].id, loc_ptrs[i].mem_loc);
+        printf("Location %s: %i\n", loc_ptrs[i].id, loc_ptrs[i].mem_loc);
         free(loc_ptrs[i].id);
     }
 
